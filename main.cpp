@@ -2,8 +2,8 @@
 #include <cmath>
 #include <iostream>
 
-unsigned int windowSizeX = 1000;
-unsigned int windowSizeY = 800;
+unsigned int windowSizeX = 1024;
+unsigned int windowSizeY = 768;
 
 const int mapWidth = 8;
 const int mapHeight = 15;
@@ -15,23 +15,23 @@ int worldMap[mapWidth][mapHeight] = {
     {1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1},
     {1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1},
     {1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    {1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1}
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1}
 };
 
 double posX = 3.0, posY = 3.0;
 double dirX = -1.0, dirY = 0.0;
 double planeX = 0.0, planeY = 0.66;
 void procesInput(){
-    const double moveSpeed = 0.01;
-    const double rotSpeed = 0.007;
+    const double moveSpeed = 0.004;
+    const double rotSpeed = 0.004;
 
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
         if (worldMap[int(posX + dirX * moveSpeed)][int(posY)] == 0) posX += dirX * moveSpeed;
         if (worldMap[int(posX)][int(posY + dirY * moveSpeed)] == 0) posY += dirY * moveSpeed;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-    if (worldMap[int(posX - dirX * moveSpeed)][int(posY)] == 0) posX -= dirX * moveSpeed;
-    if (worldMap[int(posX)][int(posY - dirY * moveSpeed)] == 0) posY -= dirY * moveSpeed;
+        if (worldMap[int(posX - dirX * moveSpeed)][int(posY)] == 0) posX -= dirX * moveSpeed;
+        if (worldMap[int(posX)][int(posY - dirY * moveSpeed)] == 0) posY -= dirY * moveSpeed;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
         double oldDirX = dirX;
@@ -64,8 +64,30 @@ int main(){
             if (event.type == sf::Event::Closed)
                 window.close();
         }
+        sf::Texture textureWall1;
+        if (!textureWall1.loadFromFile("textures/wall1.jpg")) {
+            std::cout<<"ERROR::CAN_NOT_LOAD_WALL1.PNG"<<std::endl;
+            return -1;
+        }
+
+        sf::RectangleShape roof(sf::Vector2f(windowSizeX, windowSizeY / 2));
+        sf::Color roofColor (10, 26, 43);
+        roof.setFillColor(roofColor);
+        roof.setPosition(0, 0);
+        window.draw(roof);
+
+        sf::RectangleShape flor(sf::Vector2f(windowSizeX, windowSizeY / 2));
+        sf::Color florColor (21, 26, 31);
+        flor.setFillColor(florColor);
+        flor.setPosition(0, windowSizeY / 2);
+        window.draw(flor);
+
         procesInput();
+
         for (int x = 0; x < windowSizeX; x++) {
+
+
+
         double cameraX = 2 * x / double(windowSizeX) - 1;
         double rayDirX = dirX + planeX * cameraX;
         double rayDirY = dirY + planeY * cameraX;
@@ -97,6 +119,7 @@ int main(){
             stepY = 1;
             sideDistY = (mapY + 1.0 - posY) * deltaDistY;
         }
+
         while (hit == 0) {
             if (sideDistX < sideDistY) {
                 sideDistX += deltaDistX;
@@ -108,29 +131,72 @@ int main(){
                 side = 1;
             }
             if (mapX < 0 || mapX >= mapWidth || mapY < 0 || mapY >= mapHeight) {
-                hit = 1; 
+                hit = 1;
             } else if (worldMap[mapX][mapY] > 0) {
                 hit = 1;
             }
         }
 
+        if (side == 0) {
+            perWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
+        } else {
+            perWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+        }
 
-        if (side == 0) perWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
-            else perWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
-
-        float lineHeight = (windowSizeY / perWallDist);
+        int lineHeight = int(windowSizeY / perWallDist);
         float drawStart = -lineHeight / 2 + windowSizeY / 2;
         if (drawStart < 0) drawStart = 0;
-        float deltaColor = 255 - perWallDist * 50;
-        if(deltaColor < 0) deltaColor = 0;
-        sf::RectangleShape line(sf::Vector2f(1.f, lineHeight));
-        line.setFillColor(sf::Color(deltaColor,deltaColor,deltaColor));
-        line.setPosition(x, drawStart); // Позиция линии (X, Y)
-        window.draw(line);
 
+        double wallX;
+        if (side == 0) {
+        wallX = posY + perWallDist * rayDirY;
+        } else {
+            wallX = posX + perWallDist * rayDirX;
+        }
+        wallX -= floor(wallX);
+        int texX = int(wallX * double(textureWall1.getSize().x));
+        if (texX >= textureWall1.getSize().x) texX = textureWall1.getSize().x - 1;
+        if (texX < 0) texX = 0;
+        sf::Sprite spriteWall1;
+        spriteWall1.setTexture(textureWall1);
+        
+    if (lineHeight > windowSizeY) {
+        float cutRatio = float(windowSizeY) / float(lineHeight);
+        int textureHeight = int(textureWall1.getSize().y * cutRatio);
+        int cutTop = (textureWall1.getSize().y - textureHeight) / 2;
+        lineHeight = windowSizeY;
+
+        spriteWall1.setTextureRect(sf::IntRect(texX, cutTop, 1, textureHeight));
+        spriteWall1.setPosition(x, -lineHeight / 2 + windowSizeY / 2);
+
+        float scaleY = float(lineHeight) / float(textureHeight);
+        spriteWall1.setScale(1.0f, scaleY);
+
+        float darkValue = 15.0f;
+        float deltaColor = 255 - perWallDist * darkValue;
+        if(deltaColor < 0) deltaColor = 0;
+        sf::Color dark(deltaColor,deltaColor,deltaColor);
+        spriteWall1.setColor(dark);
+        
+        window.draw(spriteWall1);
+    } else {
+
+        spriteWall1.setTextureRect(sf::IntRect(texX, 0, 1, textureWall1.getSize().y));
+        spriteWall1.setPosition(x, -lineHeight / 2 + windowSizeY / 2);
+
+        float scaleY = float(lineHeight) / float(textureWall1.getSize().y);
+        spriteWall1.setScale(1.0f, scaleY);
+        float darkValue = 15.0f;
+        float deltaColor = 255 - perWallDist * darkValue;
+        if(deltaColor < 0) deltaColor = 0;
+        sf::Color dark(deltaColor,deltaColor,deltaColor);
+        spriteWall1.setColor(dark);
+
+        window.draw(spriteWall1);
     }
+}           
         window.display();
         window.clear();
-}
+} 
     return 0;
 }
